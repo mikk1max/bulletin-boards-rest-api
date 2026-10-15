@@ -26,8 +26,6 @@ app.use((_req: Request, res: Response) => {
 
 // Error handling middleware
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-
   if (err.type === "entity.parse.failed") {
     return res.status(400).json({
       error: "Validation failed",
@@ -53,6 +51,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     return res.status(400).json({ error: "Foreign key constraint failed" });
   }
 
+  // Only unexpected errors are logged; client errors may carry request data
+  console.error(err);
   res.status(500).json({ error: "Internal server error" });
 });
 
