@@ -7,6 +7,8 @@ import { z } from "zod";
 
 extendZodWithOpenApi(z);
 
+export { z };
+
 export const registry = new OpenAPIRegistry();
 
 registry.registerComponent("securitySchemes", "bearerAuth", {
@@ -21,9 +23,9 @@ export function generateOpenApiDocument() {
   return generator.generateDocument({
     openapi: "3.0.0",
     info: {
-      title: "Your API",
+      title: "Bulletin Board API",
       version: "1.0.0",
-      description: "REST API for your project",
+      description: "JSON REST API for a bulletin board with JWT authentication",
     },
     servers: [{ url: "http://localhost:3000" }],
   });
