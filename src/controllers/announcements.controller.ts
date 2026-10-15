@@ -23,6 +23,21 @@ const announcementSelect = {
   user: { select: publicUserSelect },
 } as const;
 
+async function assertOwnership(id: number, userId: number) {
+  const announcement = await prisma.announcement.findUnique({
+    where: { id },
+    select: { userId: true },
+  });
+
+  if (!announcement) {
+    throw createHttpError(404, "Announcement not found");
+  }
+
+  if (announcement.userId !== userId) {
+    throw createHttpError(403, "Access denied");
+  }
+}
+
 export async function listAnnouncements(req: Request, res: Response) {
   const { search, sort, page } = req.query as unknown as ListAnnouncementsQuery;
 
@@ -81,6 +96,8 @@ export async function createAnnouncement(req: Request, res: Response) {
 export async function updateAnnouncement(req: Request, res: Response) {
   const { id } = req.params as unknown as AnnouncementIdParams;
 
+  await assertOwnership(id, req.user!.sub);
+
   const announcement = await prisma.announcement.update({
     where: { id },
     data: req.body as UpdateAnnouncementBody,
@@ -92,6 +109,8 @@ export async function updateAnnouncement(req: Request, res: Response) {
 
 export async function deleteAnnouncement(req: Request, res: Response) {
   const { id } = req.params as unknown as AnnouncementIdParams;
+
+  await assertOwnership(id, req.user!.sub);
 
   await prisma.announcement.delete({ where: { id } });
 
