@@ -1,13 +1,17 @@
 {
   "name": "bulletin-boards-rest-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Bulletin board JSON REST API with JWT authentication",
+  "main": "app.ts",
   "scripts": {
     "start": "tsx app.ts",
     "dev": "tsx --watch app.ts",
+    "typecheck": "tsc -p .",
+    "db:up": "docker compose up -d",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:generate": "prisma generate"
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:generate": "prisma generate",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
