@@ -11,7 +11,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "keywords": [],
   "author": "",
