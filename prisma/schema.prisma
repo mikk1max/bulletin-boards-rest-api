@@ -41,6 +41,7 @@ model Announcement {
   description String
   price       Float
   category    Category
+  imageUrl    String?
   userId      Int
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
