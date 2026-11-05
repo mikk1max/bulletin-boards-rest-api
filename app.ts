@@ -3,6 +3,9 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import cookieParser from "cookie-parser";
+import cors from "cors";
+import helmet from "helmet";
+import createHttpError from "http-errors";
 import { pinoHttp } from "pino-http";
 
 import logger from "./src/logger.ts";
@@ -11,6 +14,13 @@ import authRoutes from "./src/routes/auth.routes.ts";
 import announcementsRoutes from "./src/routes/announcements.routes.ts";
 
 const app = express();
+
+const isProduction = process.env.NODE_ENV === "production";
+
+const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(
   pinoHttp({
@@ -23,6 +33,23 @@ app.use(
       if (err || res.statusCode >= 500) return "error";
       if (res.statusCode >= 400) return "warn";
       return "info";
+    },
+  }),
+);
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      // Swagger UI runs over plain HTTP locally, so requests must not be upgraded to HTTPS
+      directives: { upgradeInsecureRequests: isProduction ? [] : null },
+    },
+  }),
+);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Requests without Origin (curl, server-to-server) are not CORS requests
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      callback(createHttpError(403, "Origin not allowed by CORS"));
     },
   }),
 );
