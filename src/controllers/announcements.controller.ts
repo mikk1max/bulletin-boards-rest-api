@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import createHttpError from "http-errors";
 import prisma from "../../prisma/client.ts";
+import logger from "../logger.ts";
 import type { Prisma } from "../../generated/prisma/client.ts";
 import { publicUserSelect } from "./auth.controller.ts";
 import type {
@@ -90,6 +91,8 @@ export async function createAnnouncement(req: Request, res: Response) {
     select: announcementSelect,
   });
 
+  logger.info({ announcementId: announcement.id, userId: req.user!.sub }, "Announcement created");
+
   res.status(201).json(announcement);
 }
 
@@ -104,6 +107,8 @@ export async function updateAnnouncement(req: Request, res: Response) {
     select: announcementSelect,
   });
 
+  logger.info({ announcementId: id, userId: req.user!.sub }, "Announcement updated");
+
   res.json(announcement);
 }
 
@@ -113,6 +118,7 @@ export async function deleteAnnouncement(req: Request, res: Response) {
   await assertOwnership(id, req.user!.sub);
 
   await prisma.announcement.delete({ where: { id } });
+  logger.info({ announcementId: id, userId: req.user!.sub }, "Announcement deleted");
 
   res.status(204).end();
 }

@@ -3,13 +3,29 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import swaggerUi from "swagger-ui-express";
 import cookieParser from "cookie-parser";
+import { pinoHttp } from "pino-http";
 
+import logger from "./src/logger.ts";
 import { generateOpenApiDocument } from "./src/openapi.ts";
 import authRoutes from "./src/routes/auth.routes.ts";
 import announcementsRoutes from "./src/routes/announcements.routes.ts";
 
 const app = express();
 
+app.use(
+  pinoHttp({
+    logger,
+    serializers: {
+      req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+      res: (res) => ({ statusCode: res.statusCode }),
+    },
+    customLogLevel: (_req, res, err) => {
+      if (err || res.statusCode >= 500) return "error";
+      if (res.statusCode >= 400) return "warn";
+      return "info";
+    },
+  }),
+);
 app.use(express.json());
 app.use(cookieParser());
 
@@ -52,14 +68,12 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   }
 
   // Only unexpected errors are logged; client errors may carry request data
-  console.error(err);
+  logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Internal server error" });
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(
-    `Server is running on port ${PORT}: http://localhost:${PORT}/api-docs`,
-  );
+  logger.info(`Server is running on port ${PORT}: http://localhost:${PORT}/api-docs`);
 });

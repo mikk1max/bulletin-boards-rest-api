@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import createHttpError from "http-errors";
 import prisma from "../../prisma/client.ts";
+import logger from "../logger.ts";
 import { generateTokens, verifyToken } from "../utils/tokens.ts";
 import type { LoginBody, RefreshBody, RegisterBody } from "../validators/auth.validator.ts";
 
@@ -47,6 +48,7 @@ export async function register(req: Request, res: Response) {
   });
 
   const tokens = await issueTokens(user);
+  logger.info({ userId: user.id, username }, "User registered");
 
   res.status(201).json({ user, ...tokens });
 }
@@ -58,10 +60,13 @@ export async function login(req: Request, res: Response) {
   const isValid = await bcrypt.compare(password, user?.password ?? DUMMY_HASH);
 
   if (!user || !isValid) {
+    logger.warn({ username }, "Failed login attempt");
     throw createHttpError(401, "Invalid credentials");
   }
 
   const tokens = await issueTokens(user);
+  logger.info({ userId: user.id, username }, "User logged in");
+
   const { password: _password, createdAt: _createdAt, ...publicUser } = user;
 
   res.json({ user: publicUser, ...tokens });
@@ -105,6 +110,7 @@ export async function refresh(req: Request, res: Response) {
 
 export async function logout(req: Request, res: Response) {
   await prisma.refreshToken.deleteMany({ where: { userId: req.user!.sub } });
+  logger.info({ userId: req.user!.sub }, "User logged out");
 
   res.status(204).end();
 }
