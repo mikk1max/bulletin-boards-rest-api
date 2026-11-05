@@ -1,6 +1,8 @@
 import { Router } from "express";
+import type { RequestHandler } from "express";
 import * as announcementsController from "../controllers/announcements.controller.ts";
 import { authenticate } from "../middleware/authenticate.ts";
+import { uploadImage } from "../middleware/upload.ts";
 import { validateBody, validateParams, validateQuery } from "../middleware/validate.ts";
 import {
   errorResponse,
@@ -14,10 +16,15 @@ import {
   announcementSchema,
   createAnnouncementSchema,
   listAnnouncementsQuerySchema,
+  updateAnnouncementFieldsSchema,
   updateAnnouncementSchema,
 } from "../validators/announcements.validator.ts";
 
 const router = Router();
+
+// An image alone is a valid update, so the "at least one field" rule applies only without a file
+const validateUpdateBody: RequestHandler = (req, res, next) =>
+  validateBody(req.file ? updateAnnouncementFieldsSchema : updateAnnouncementSchema)(req, res, next);
 
 router.get(
   "/",
@@ -32,6 +39,7 @@ router.get(
 router.post(
   "/",
   authenticate,
+  uploadImage,
   validateBody(createAnnouncementSchema),
   announcementsController.createAnnouncement,
 );
@@ -39,7 +47,8 @@ router.patch(
   "/:id",
   authenticate,
   validateParams(announcementIdSchema),
-  validateBody(updateAnnouncementSchema),
+  uploadImage,
+  validateUpdateBody,
   announcementsController.updateAnnouncement,
 );
 router.delete(

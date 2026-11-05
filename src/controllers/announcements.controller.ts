@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import createHttpError from "http-errors";
 import prisma from "../../prisma/client.ts";
 import logger from "../logger.ts";
+import { uploadToCloudinary } from "../utils/cloudinary.ts";
 import type { Prisma } from "../../generated/prisma/client.ts";
 import { publicUserSelect } from "./auth.controller.ts";
 import type {
@@ -19,6 +20,7 @@ const announcementSelect = {
   description: true,
   price: true,
   category: true,
+  imageUrl: true,
   createdAt: true,
   updatedAt: true,
   user: { select: publicUserSelect },
@@ -37,6 +39,13 @@ async function assertOwnership(id: number, userId: number) {
   if (announcement.userId !== userId) {
     throw createHttpError(403, "Access denied");
   }
+}
+
+async function uploadAnnouncementImage(file: Express.Multer.File, userId: number) {
+  const imageUrl = await uploadToCloudinary(file.path);
+  logger.info({ userId, imageUrl }, "Image uploaded to Cloudinary");
+
+  return imageUrl;
 }
 
 export async function listAnnouncements(req: Request, res: Response) {
@@ -85,13 +94,15 @@ export async function getAnnouncement(req: Request, res: Response) {
 
 export async function createAnnouncement(req: Request, res: Response) {
   const body = req.body as CreateAnnouncementBody;
+  const userId = req.user!.sub;
+  const imageUrl = req.file ? await uploadAnnouncementImage(req.file, userId) : undefined;
 
   const announcement = await prisma.announcement.create({
-    data: { ...body, userId: req.user!.sub },
+    data: { ...body, imageUrl, userId },
     select: announcementSelect,
   });
 
-  logger.info({ announcementId: announcement.id, userId: req.user!.sub }, "Announcement created");
+  logger.info({ announcementId: announcement.id, userId }, "Announcement created");
 
   res.status(201).json(announcement);
 }
@@ -101,9 +112,12 @@ export async function updateAnnouncement(req: Request, res: Response) {
 
   await assertOwnership(id, req.user!.sub);
 
+  const body = req.body as UpdateAnnouncementBody;
+  const imageUrl = req.file ? await uploadAnnouncementImage(req.file, req.user!.sub) : undefined;
+
   const announcement = await prisma.announcement.update({
     where: { id },
-    data: req.body as UpdateAnnouncementBody,
+    data: { ...body, imageUrl },
     select: announcementSelect,
   });
 
