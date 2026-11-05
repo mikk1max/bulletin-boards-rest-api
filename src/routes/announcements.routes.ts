@@ -14,9 +14,11 @@ import {
   announcementIdSchema,
   announcementListSchema,
   announcementSchema,
+  createAnnouncementFormSchema,
   createAnnouncementSchema,
   listAnnouncementsQuerySchema,
   updateAnnouncementFieldsSchema,
+  updateAnnouncementFormSchema,
   updateAnnouncementSchema,
 } from "../validators/announcements.validator.ts";
 
@@ -94,8 +96,16 @@ registry.registerPath({
   path: "/announcements",
   tags: ["Announcements"],
   summary: "Create an announcement",
+  description: "Send as multipart/form-data to attach an optional image, which is uploaded to Cloudinary.",
   security: [{ bearerAuth: [] }],
-  request: { body: jsonContent(createAnnouncementSchema) },
+  request: {
+    body: {
+      content: {
+        "multipart/form-data": { schema: createAnnouncementFormSchema },
+        "application/json": { schema: createAnnouncementSchema },
+      },
+    },
+  },
   responses: {
     201: { description: "Announcement created", ...jsonContent(announcementSchema) },
     400: validationErrorResponse,
@@ -108,8 +118,17 @@ registry.registerPath({
   path: "/announcements/{id}",
   tags: ["Announcements"],
   summary: "Partially update own announcement",
+  description: "Send as multipart/form-data to replace the image. An image alone is a valid update.",
   security: [{ bearerAuth: [] }],
-  request: { params: announcementIdSchema, body: jsonContent(updateAnnouncementSchema) },
+  request: {
+    params: announcementIdSchema,
+    body: {
+      content: {
+        "multipart/form-data": { schema: updateAnnouncementFormSchema },
+        "application/json": { schema: updateAnnouncementSchema },
+      },
+    },
+  },
   responses: {
     200: { description: "Announcement updated", ...jsonContent(announcementSchema) },
     400: validationErrorResponse,

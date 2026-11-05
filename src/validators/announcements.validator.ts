@@ -28,12 +28,13 @@ const imageField = z
   .optional()
   .openapi({ type: "string", format: "binary", description: "JPEG, PNG, WebP or GIF, up to 5 MB" });
 
-export const createAnnouncementFormSchema = createAnnouncementSchema
-  .extend({ image: imageField })
+export const createAnnouncementFormSchema = z
+  .object({ ...announcementFields, image: imageField })
   .openapi("CreateAnnouncementForm");
 
-export const updateAnnouncementFormSchema = updateAnnouncementFieldsSchema
-  .extend({ image: imageField })
+export const updateAnnouncementFormSchema = z
+  .object({ ...announcementFields, image: imageField })
+  .partial()
   .openapi("UpdateAnnouncementForm", {
     description: "At least one field or an image must be provided",
   });

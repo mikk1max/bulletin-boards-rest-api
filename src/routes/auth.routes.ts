@@ -30,6 +30,8 @@ router.get("/me", authenticate, authController.me);
 
 export default router;
 
+const tooManyRequests = errorResponse("Too many requests, please try again later");
+
 registry.registerPath({
   method: "post",
   path: "/auth/register",
@@ -40,6 +42,7 @@ registry.registerPath({
     201: { description: "User created", ...jsonContent(authResponseSchema) },
     400: validationErrorResponse,
     409: errorResponse("Username or email already taken"),
+    429: tooManyRequests,
   },
 });
 
@@ -53,6 +56,7 @@ registry.registerPath({
     200: { description: "Logged in", ...jsonContent(authResponseSchema) },
     400: validationErrorResponse,
     401: errorResponse("Invalid credentials"),
+    429: tooManyRequests,
   },
 });
 
@@ -66,6 +70,7 @@ registry.registerPath({
     200: { description: "New token pair", ...jsonContent(tokenPairSchema) },
     400: validationErrorResponse,
     401: errorResponse("Invalid refresh token"),
+    429: tooManyRequests,
   },
 });
 
@@ -78,6 +83,7 @@ registry.registerPath({
   responses: {
     204: { description: "Logged out" },
     401: errorResponse("Missing or invalid access token"),
+    429: tooManyRequests,
   },
 });
 
@@ -90,5 +96,6 @@ registry.registerPath({
   responses: {
     200: { description: "Current user", ...jsonContent(profileSchema) },
     401: errorResponse("Missing or invalid access token"),
+    429: tooManyRequests,
   },
 });
