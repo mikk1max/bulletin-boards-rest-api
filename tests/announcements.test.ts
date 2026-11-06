@@ -66,6 +66,22 @@ describe("POST /announcements", () => {
     });
   });
 
+  it("returns 502 and removes the temp file when Cloudinary fails", async () => {
+    cloudinaryUpload.mockRejectedValue(new Error("Invalid API key"));
+
+    const res = await postAnnouncement().attach("image", PNG, {
+      filename: "bike.png",
+      contentType: "image/png",
+    });
+
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual({ error: "Image upload failed" });
+
+    const [tempPath] = cloudinaryUpload.mock.calls[0];
+    expect(existsSync(tempPath)).toBe(false);
+    expect(prismaMock.announcement.create).not.toHaveBeenCalled();
+  });
+
   it("creates an announcement without an image", async () => {
     const res = await postAnnouncement();
 

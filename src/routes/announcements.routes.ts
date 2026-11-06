@@ -65,6 +65,7 @@ export default router;
 const unauthorized = errorResponse("Missing or invalid access token");
 const notFound = errorResponse("Announcement not found");
 const forbidden = errorResponse("Access denied");
+const uploadFailed = errorResponse("Image upload failed");
 
 registry.registerPath({
   method: "get",
@@ -110,6 +111,7 @@ registry.registerPath({
     201: { description: "Announcement created", ...jsonContent(announcementSchema) },
     400: validationErrorResponse,
     401: unauthorized,
+    502: uploadFailed,
   },
 });
 
@@ -135,6 +137,7 @@ registry.registerPath({
     401: unauthorized,
     403: forbidden,
     404: notFound,
+    502: uploadFailed,
   },
 });
 

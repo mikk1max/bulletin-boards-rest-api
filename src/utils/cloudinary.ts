@@ -1,5 +1,7 @@
 import { unlink } from "node:fs/promises";
 import { v2 as cloudinary } from "cloudinary";
+import createHttpError from "http-errors";
+import logger from "../logger.ts";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -15,6 +17,9 @@ export async function uploadToCloudinary(filePath: string): Promise<string> {
       resource_type: "image",
     });
     return result.secure_url;
+  } catch (err) {
+    logger.error({ err }, "Cloudinary upload failed");
+    throw createHttpError(502, "Image upload failed");
   } finally {
     await unlink(filePath);
   }

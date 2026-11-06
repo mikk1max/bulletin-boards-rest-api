@@ -81,6 +81,11 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     });
   }
 
+  // Errors created on purpose with http-errors carry a safe, client-facing message
+  if (createHttpError.isHttpError(err)) {
+    return res.status(err.status).json({ error: err.message });
+  }
+
   if (err.status && err.status >= 400 && err.status < 500) {
     return res.status(err.status).json({ error: err.message });
   }
