@@ -32,7 +32,13 @@ export async function uploadToCloudinary(filePath: string): Promise<UploadedImag
 
 export async function deleteFromCloudinary(publicId: string) {
   try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+    // destroy() resolves with a status instead of rejecting, e.g. { result: "not found" }
+    const { result } = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+    if (result !== "ok") throw new Error(`Cloudinary destroy returned "${result}"`);
+
     logger.info({ publicId }, "Image deleted from Cloudinary");
   } catch (err) {
     // The database is already updated, so a leftover image is only logged

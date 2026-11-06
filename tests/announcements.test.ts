@@ -120,7 +120,7 @@ describe("PATCH /announcements/:id", () => {
       imageUrl: IMAGE_URL,
       imagePublicId: IMAGE_PUBLIC_ID,
     });
-    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image" });
+    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image", invalidate: true });
   });
 
   it("keeps the current image when no new image is sent", async () => {
@@ -155,6 +155,6 @@ describe("DELETE /announcements/:id", () => {
 
     expect(res.status).toBe(204);
     expect(prismaMock.announcement.delete).toHaveBeenCalledWith({ where: { id: 1 } });
-    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image" });
+    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image", invalidate: true });
   });
 });
