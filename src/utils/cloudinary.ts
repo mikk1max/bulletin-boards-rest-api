@@ -24,7 +24,7 @@ export async function uploadToCloudinary(filePath: string): Promise<UploadedImag
     return { url: result.secure_url, publicId: result.public_id };
   } catch (err) {
     logger.error({ err }, "Cloudinary upload failed");
-    throw createHttpError(502, "Image upload failed");
+    throw createHttpError(502, "Image upload failed", { expose: true });
   } finally {
     await unlink(filePath);
   }

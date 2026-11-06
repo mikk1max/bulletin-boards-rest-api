@@ -81,8 +81,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     });
   }
 
-  // Errors created on purpose with http-errors carry a safe, client-facing message
-  if (createHttpError.isHttpError(err)) {
+  // http-errors marks errors whose message is safe to show to the client with `expose`
+  if (createHttpError.isHttpError(err) && err.expose) {
     return res.status(err.status).json({ error: err.message });
   }
 
