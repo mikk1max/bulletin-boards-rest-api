@@ -92,6 +92,8 @@ Protected routes expect an `Authorization: Bearer <accessToken>` header.
 
 `POST /announcements` and `PATCH /announcements/:id` accept `multipart/form-data` with an optional `image` field (JPEG, PNG, WebP or GIF, up to 5 MB). JSON bodies still work for requests without an image.
 
+The Cloudinary `public_id` is stored next to the URL, so replacing an image or deleting an announcement also removes the old image from Cloudinary. If the upload to Cloudinary fails, the API responds with `502 Image upload failed`.
+
 ```bash
 curl -X POST http://localhost:3000/announcements \
   -H "Authorization: Bearer <accessToken>" \
@@ -109,7 +111,7 @@ npm test          # watch mode
 npm run test:run  # single run
 ```
 
-Tests use Supertest against the Express app with Prisma and Cloudinary mocked, so no database or Cloudinary account is needed. They cover token generation, password hashing, registration and login, helmet headers, CORS, rate limiting, image uploads (including temp file cleanup) and ownership checks.
+Tests use Supertest against the Express app with Prisma and Cloudinary mocked, so no database or Cloudinary account is needed. They cover token generation, password hashing, registration and login, helmet headers, CORS, rate limiting (including behind a proxy), image uploads (temp file cleanup, Cloudinary failures, replacing and deleting images) and ownership checks.
 
 Validation errors return `400`:
 

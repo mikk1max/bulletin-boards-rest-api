@@ -2,22 +2,25 @@ import { existsSync } from "node:fs";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { prismaMock, cloudinaryUpload } = vi.hoisted(() => ({
+const { prismaMock, cloudinaryUpload, cloudinaryDestroy } = vi.hoisted(() => ({
   prismaMock: {
-    announcement: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
+    announcement: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
   },
   cloudinaryUpload: vi.fn(),
+  cloudinaryDestroy: vi.fn(),
 }));
 
 vi.mock("../prisma/client.ts", () => ({ default: prismaMock }));
 vi.mock("cloudinary", () => ({
-  v2: { config: vi.fn(), uploader: { upload: cloudinaryUpload } },
+  v2: { config: vi.fn(), uploader: { upload: cloudinaryUpload, destroy: cloudinaryDestroy } },
 }));
 
 const { default: app } = await import("../app.ts");
 const { generateTokens } = await import("../src/utils/tokens.ts");
 
 const IMAGE_URL = "https://res.cloudinary.com/demo/image/upload/v1/announcements/abc123.jpg";
+const IMAGE_PUBLIC_ID = "announcements/abc123";
+const OLD_IMAGE_PUBLIC_ID = "announcements/old456";
 const PNG = Buffer.from("89504e470d0a1a0a", "hex");
 const { accessToken } = generateTokens({ id: 1, username: "ivan_petrenko" });
 
@@ -36,8 +39,11 @@ function postAnnouncement() {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  cloudinaryUpload.mockResolvedValue({ secure_url: IMAGE_URL });
+  cloudinaryUpload.mockResolvedValue({ secure_url: IMAGE_URL, public_id: IMAGE_PUBLIC_ID });
+  cloudinaryDestroy.mockResolvedValue({ result: "ok" });
   prismaMock.announcement.create.mockImplementation(({ data }) => ({ id: 1, ...data }));
+  prismaMock.announcement.update.mockImplementation(({ data }) => ({ id: 1, ...data }));
+  prismaMock.announcement.findUnique.mockResolvedValue({ userId: 1, imagePublicId: OLD_IMAGE_PUBLIC_ID });
 });
 
 describe("POST /announcements", () => {
@@ -62,6 +68,7 @@ describe("POST /announcements", () => {
     expect(prismaMock.announcement.create.mock.calls[0][0].data).toMatchObject({
       price: 8500,
       imageUrl: IMAGE_URL,
+      imagePublicId: IMAGE_PUBLIC_ID,
       userId: 1,
     });
   });
@@ -102,8 +109,32 @@ describe("POST /announcements", () => {
 });
 
 describe("PATCH /announcements/:id", () => {
+  it("replaces the image and deletes the old one from Cloudinary", async () => {
+    const res = await request(app)
+      .patch("/announcements/1")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .attach("image", PNG, { filename: "bike.png", contentType: "image/png" });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.announcement.update.mock.calls[0][0].data).toEqual({
+      imageUrl: IMAGE_URL,
+      imagePublicId: IMAGE_PUBLIC_ID,
+    });
+    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image" });
+  });
+
+  it("keeps the current image when no new image is sent", async () => {
+    const res = await request(app)
+      .patch("/announcements/1")
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ price: 100 });
+
+    expect(res.status).toBe(200);
+    expect(cloudinaryDestroy).not.toHaveBeenCalled();
+  });
+
   it("returns 403 when updating someone else's announcement", async () => {
-    prismaMock.announcement.findUnique.mockResolvedValue({ userId: 2 });
+    prismaMock.announcement.findUnique.mockResolvedValue({ userId: 2, imagePublicId: null });
 
     const res = await request(app)
       .patch("/announcements/1")
@@ -113,5 +144,17 @@ describe("PATCH /announcements/:id", () => {
     expect(res.status).toBe(403);
     expect(res.body).toEqual({ error: "Access denied" });
     expect(prismaMock.announcement.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("DELETE /announcements/:id", () => {
+  it("deletes the announcement together with its Cloudinary image", async () => {
+    const res = await request(app)
+      .delete("/announcements/1")
+      .set("Authorization", `Bearer ${accessToken}`);
+
+    expect(res.status).toBe(204);
+    expect(prismaMock.announcement.delete).toHaveBeenCalledWith({ where: { id: 1 } });
+    expect(cloudinaryDestroy).toHaveBeenCalledWith(OLD_IMAGE_PUBLIC_ID, { resource_type: "image" });
   });
 });

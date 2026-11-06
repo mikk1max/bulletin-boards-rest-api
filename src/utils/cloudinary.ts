@@ -10,17 +10,32 @@ cloudinary.config({
   secure: true,
 });
 
-export async function uploadToCloudinary(filePath: string): Promise<string> {
+export interface UploadedImage {
+  url: string;
+  publicId: string;
+}
+
+export async function uploadToCloudinary(filePath: string): Promise<UploadedImage> {
   try {
     const result = await cloudinary.uploader.upload(filePath, {
       folder: "announcements",
       resource_type: "image",
     });
-    return result.secure_url;
+    return { url: result.secure_url, publicId: result.public_id };
   } catch (err) {
     logger.error({ err }, "Cloudinary upload failed");
     throw createHttpError(502, "Image upload failed");
   } finally {
     await unlink(filePath);
+  }
+}
+
+export async function deleteFromCloudinary(publicId: string) {
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+    logger.info({ publicId }, "Image deleted from Cloudinary");
+  } catch (err) {
+    // The database is already updated, so a leftover image is only logged
+    logger.warn({ err, publicId }, "Failed to delete image from Cloudinary");
   }
 }

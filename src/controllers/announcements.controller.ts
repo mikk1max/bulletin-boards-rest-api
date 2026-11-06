@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import createHttpError from "http-errors";
 import prisma from "../../prisma/client.ts";
 import logger from "../logger.ts";
-import { uploadToCloudinary } from "../utils/cloudinary.ts";
+import { deleteFromCloudinary, uploadToCloudinary } from "../utils/cloudinary.ts";
 import type { Prisma } from "../../generated/prisma/client.ts";
 import { publicUserSelect } from "./auth.controller.ts";
 import type {
@@ -26,10 +26,10 @@ const announcementSelect = {
   user: { select: publicUserSelect },
 } as const;
 
-async function assertOwnership(id: number, userId: number) {
+async function findOwnAnnouncement(id: number, userId: number) {
   const announcement = await prisma.announcement.findUnique({
     where: { id },
-    select: { userId: true },
+    select: { userId: true, imagePublicId: true },
   });
 
   if (!announcement) {
@@ -39,13 +39,15 @@ async function assertOwnership(id: number, userId: number) {
   if (announcement.userId !== userId) {
     throw createHttpError(403, "Access denied");
   }
+
+  return announcement;
 }
 
 async function uploadAnnouncementImage(file: Express.Multer.File, userId: number) {
-  const imageUrl = await uploadToCloudinary(file.path);
-  logger.info({ userId, imageUrl }, "Image uploaded to Cloudinary");
+  const image = await uploadToCloudinary(file.path);
+  logger.info({ userId, imageUrl: image.url }, "Image uploaded to Cloudinary");
 
-  return imageUrl;
+  return { imageUrl: image.url, imagePublicId: image.publicId };
 }
 
 export async function listAnnouncements(req: Request, res: Response) {
@@ -95,10 +97,10 @@ export async function getAnnouncement(req: Request, res: Response) {
 export async function createAnnouncement(req: Request, res: Response) {
   const body = req.body as CreateAnnouncementBody;
   const userId = req.user!.sub;
-  const imageUrl = req.file ? await uploadAnnouncementImage(req.file, userId) : undefined;
+  const image = req.file ? await uploadAnnouncementImage(req.file, userId) : undefined;
 
   const announcement = await prisma.announcement.create({
-    data: { ...body, imageUrl, userId },
+    data: { ...body, ...image, userId },
     select: announcementSelect,
   });
 
@@ -110,18 +112,24 @@ export async function createAnnouncement(req: Request, res: Response) {
 export async function updateAnnouncement(req: Request, res: Response) {
   const { id } = req.params as unknown as AnnouncementIdParams;
 
-  await assertOwnership(id, req.user!.sub);
+  const userId = req.user!.sub;
+  const current = await findOwnAnnouncement(id, userId);
 
   const body = req.body as UpdateAnnouncementBody;
-  const imageUrl = req.file ? await uploadAnnouncementImage(req.file, req.user!.sub) : undefined;
+  const image = req.file ? await uploadAnnouncementImage(req.file, userId) : undefined;
 
   const announcement = await prisma.announcement.update({
     where: { id },
-    data: { ...body, imageUrl },
+    data: { ...body, ...image },
     select: announcementSelect,
   });
 
-  logger.info({ announcementId: id, userId: req.user!.sub }, "Announcement updated");
+  logger.info({ announcementId: id, userId }, "Announcement updated");
+
+  // The old image is removed only after the new one is saved
+  if (image && current.imagePublicId) {
+    await deleteFromCloudinary(current.imagePublicId);
+  }
 
   res.json(announcement);
 }
@@ -129,10 +137,15 @@ export async function updateAnnouncement(req: Request, res: Response) {
 export async function deleteAnnouncement(req: Request, res: Response) {
   const { id } = req.params as unknown as AnnouncementIdParams;
 
-  await assertOwnership(id, req.user!.sub);
+  const userId = req.user!.sub;
+  const { imagePublicId } = await findOwnAnnouncement(id, userId);
 
   await prisma.announcement.delete({ where: { id } });
-  logger.info({ announcementId: id, userId: req.user!.sub }, "Announcement deleted");
+  logger.info({ announcementId: id, userId }, "Announcement deleted");
+
+  if (imagePublicId) {
+    await deleteFromCloudinary(imagePublicId);
+  }
 
   res.status(204).end();
 }
