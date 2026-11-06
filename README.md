@@ -37,6 +37,7 @@ The API runs at http://localhost:3000. Swagger UI is at http://localhost:3000/ap
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name                                |
 | `CLOUDINARY_API_KEY`    | Cloudinary API key                                   |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret                                |
+| `TRUST_PROXY`           | Number of reverse proxies in front of the app (`1` when deployed behind one, default `0`) |
 | `PORT`                  | Server port (default `3000`)                         |
 | `LOG_LEVEL`             | pino log level (default `info`)                      |
 

@@ -15,6 +15,9 @@ import announcementsRoutes from "./src/routes/announcements.routes.ts";
 
 const app = express();
 
+// Number of reverse proxies in front of the app, so req.ip (and the rate limit key) is the real client IP
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 0));
+
 const isProduction = process.env.NODE_ENV === "production";
 
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? "")

@@ -8,6 +8,8 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock("../prisma/client.ts", () => ({ default: prismaMock }));
 
+vi.stubEnv("TRUST_PROXY", "1");
+
 const { default: app } = await import("../app.ts");
 
 describe("helmet", () => {
@@ -48,6 +50,21 @@ describe("rate limiting", () => {
     const res = await login();
     expect(res.status).toBe(429);
     expect(res.body).toEqual({ error: "Too many requests, please try again later" });
+  });
+
+  it("limits each client separately behind a trusted proxy", async () => {
+    const login = (ip: string) =>
+      request(app)
+        .post("/auth/login")
+        .set("X-Forwarded-For", ip)
+        .send({ username: "nobody", password: "secret123" });
+
+    for (let i = 0; i < 10; i++) {
+      await login("203.0.113.1");
+    }
+
+    expect((await login("203.0.113.1")).status).toBe(429);
+    expect((await login("203.0.113.2")).status).toBe(401);
   });
 
   it("does not limit non-auth routes", async () => {
